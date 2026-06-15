@@ -2,7 +2,7 @@
 from __future__ import annotations
 from datetime import date
 import pandas as pd
-from sqlalchemy import Engine, create_engine
+from sqlalchemy import create_engine, text
 from .config import Config
 
 

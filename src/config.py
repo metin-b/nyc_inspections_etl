@@ -15,4 +15,4 @@ class Config:
 
     @classmethod
     def from_env(cls) -> "Config":
-        pass
+        return cls
