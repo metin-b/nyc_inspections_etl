@@ -13,19 +13,24 @@ app = typer.Typer(help="NYC restaurant-inspection ETL")
 @app.command()
 def extract(since: str = typer.Option(None, help="ISO date; only inspections on/after this")):
     """Pull from the API and land raw JSON to data/raw/."""
-    pass
+    cfg = Config.from_env()
 
+    session = make_session(cfg)
+    raw_records = list(extract_all(session, cfg))
+    raw_path = land_raw(raw_records, cfg)
+
+    typer.echo(f'Extracted rows: {len(raw_records)}')
+    typer.echo(f'Raw File: {raw_path}')
 
 @app.command()
 def transform():
     """Validate + clean the latest raw pull into a clean frame."""
-    pass
-
+    typer.echo("Standalone transform command is not implemented yet. Use `run` for now.")
 
 @app.command()
 def load():
-    """Load the clean frame into SQLite (idempotent)."""
-    pass
+    """Load the clean frame into SQLite."""
+    typer.echo("Standalone load command is not implemented yet. Use `run` for now.")
 
 
 @app.command()
