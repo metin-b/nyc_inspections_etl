@@ -51,3 +51,51 @@ Bad rows: 0
 ### Current limitation
 
 Standalone `transform` and `load` CLI commands are not fully implemented yet because no saved processed-data artifact exists between steps. The working command is currently `run`, which executes extract, validate, transform, load, and verify in one process.
+
+## Incremental load validation — 2026-06-16
+
+### Pipeline runs
+
+Ran a full refresh followed by three back-to-back incremental reruns to confirm
+idempotency:
+
+```powershell
+.\.venv\Scripts\python.exe -m src.cli run --full   # full refresh
+.\.venv\Scripts\python.exe -m src.cli run           # incremental
+.\.venv\Scripts\python.exe -m src.cli run           # incremental rerun
+.\.venv\Scripts\python.exe -m src.cli run           # incremental rerun
+```
+
+### Full refresh result
+
+* Raw file: `data/raw/nyc_inspections_raw_20260616_210002.json` (full dataset).
+* `inspections` table contained `297579` rows after load (up from `297407` on 2026-06-15; NYC published additional records for the same publish batch).
+* Watermark written to `etl_state` as `record_date_watermark = 2026-06-15T06:00:42` (the max `record_date` in the data), `updated_at = 2026-06-16 21:00:16`.
+
+### Incremental rerun result
+
+* The three incremental reruns each requested `record_date > '2026-06-15T06:00:42'`.
+* Each returned an empty page; the landed raw files are empty arrays:
+  * `nyc_inspections_raw_20260616_210308.json` → `[]`
+  * `nyc_inspections_raw_20260616_210643.json` → `[]`
+  * `nyc_inspections_raw_20260616_210811.json` → `[]`
+* Because no good rows were produced, the load step short-circuited: the `inspections` table stayed at `297579` rows and the watermark was left unchanged.
+* This confirms the incremental + idempotency design: reruns with no new source data neither duplicate rows nor advance the watermark.
+
+### Warehouse snapshot (post-run)
+
+Profiled directly from `warehouse.db`:
+
+| Metric                     | Value     |
+| -------------------------- | --------- |
+| Total rows                 | 297,579   |
+| Distinct `camis`           | 31,325    |
+| Null `borough`             | 361       |
+| Null `inspection_date`     | 3,499     |
+| Null `score`               | 17,191    |
+| `is_critical = True`       | 156,344   |
+| Max `record_date`          | 2026-06-15 06:00:42 |
+
+* Null `inspection_date` includes the `1900-01-01` sentinels mapped to null in transform.
+* Null `score` reflects records with no score in the source, preserved as null (nullable Int64) rather than coerced to `0`.
+* `camis` is intentionally non-unique: 31,325 establishments account for 297,579 inspection/violation rows, as expected.

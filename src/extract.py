@@ -27,36 +27,34 @@ def fetch_page(session: requests.Session, cfg: Config, *, offset: int, where: st
     """
 
 
-    param = {
+    params = {
         '$limit': cfg.page_size,
         '$offset': offset,
         '$order': cfg.order,
     }
     if where:
-        param['$where'] = where
+        params['$where'] = where
 
 
     max_attempts = 3
     for attempt in range(1, max_attempts + 1):
         try:
-            response = session.get(cfg.endpoint, params=param, timeout=30)
+            response = session.get(cfg.endpoint, params=params, timeout=30)
 
-            # Retry rate-limited or transient server errors.
             if response.status_code == 429 or 500 <= response.status_code <= 599:
-                wait_seconds = 2 ** attempt
-                time.sleep(wait_seconds)
-                continue
+                if attempt < max_attempts:
+                    wait_seconds = 2 ** attempt
+                    time.sleep(wait_seconds)
+                    continue
 
             response.raise_for_status()
             return response.json()
 
-        except requests.exceptions.Timeout:
-            wait_seconds = 2 ** attempt
-            time.sleep(wait_seconds)
-
-        except requests.exceptions.ConnectionError:
-            wait_seconds = 2 ** attempt
-            time.sleep(wait_seconds)
+        except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
+            if attempt < max_attempts:
+                wait_seconds = 2 ** attempt
+                time.sleep(wait_seconds)
+                continue
 
     raise  RuntimeError(f'Failed to fetch page after {max_attempts} attempts. Offset={offset}')
 
@@ -84,3 +82,13 @@ def land_raw(records: list[dict], cfg: Config) -> Path:
         json.dump(records, f, indent=2)
 
     return path
+
+def build_where_clause(watermark: datetime | None) -> str | None:
+    """Build a Socrata $where clause for incremental extraction"""
+    if watermark is None:
+        return None
+
+    watermark_text = watermark.isoformat()
+    return f"record_date > '{watermark_text}'"
+
+
