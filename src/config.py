@@ -1,3 +1,4 @@
+import os
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -15,4 +16,9 @@ class Config:
 
     @classmethod
     def from_env(cls) -> "Config":
-        return cls()
+        return cls(
+            app_token=os.environ.get("SOCRATA_APP_TOKEN"),
+            db_path=Path(os.environ.get("DB_PATH", "warehouse.db")),
+            raw_dir=Path(os.environ.get("RAW_DIR", "data/raw")),
+            page_size=int(os.environ.get("PAGE_SIZE", "1000")),
+        )
