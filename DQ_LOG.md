@@ -44,13 +44,8 @@ Bad rows: 0
 
 * Cleaned DataFrame contained `297407` rows.
 * SQLite `inspections` table contained `297407` rows after load.
-* verify()` confirmed that the loaded row count matched the cleaned DataFrame row count.
-* Current load strategy is full refresh.
-* load_frame()` uses `if_exists="replace"`, so rerunning the load replaces the table instead of appending duplicate rows.
-
-### Current limitation
-
-Standalone `transform` and `load` CLI commands are not fully implemented yet because no saved processed-data artifact exists between steps. The working command is currently `run`, which executes extract, validate, transform, load, and verify in one process.
+* `verify()` confirmed that the loaded row count matched the cleaned DataFrame row count.
+* `load_frame()` uses `if_exists="replace"`, so rerunning a full refresh replaces the table instead of appending duplicate rows.
 
 ## Incremental load validation — 2026-06-16
 

@@ -84,13 +84,12 @@ python -m src.cli run --full
 
 ## CLI Commands
 
-| Command       | Description                                                                  |
-| ------------- | ---------------------------------------------------------------------------- |
-| `run`         | End-to-end: extract → validate → transform → load → verify (incremental).    |
-| `run --full`  | Same pipeline, but full refresh — ignores the watermark and replaces the table. |
-| `extract`     | Pull from the API and land raw JSON to `data/raw/` only.                      |
-| `transform`   | **Stub** — not yet implemented as a standalone step (see Known Limitations).  |
-| `load`        | **Stub** — not yet implemented as a standalone step (see Known Limitations).  |
+| Command                    | Description                                                               |
+| -------------------------- | ------------------------------------------------------------------------- |
+| `run`                      | End-to-end: extract → validate → transform → load → verify (incremental). |
+| `run --full`               | Full refresh — ignores the watermark and replaces the table.              |
+| `extract`                  | Pull from the API and land raw JSON to `data/raw/` only.                   |
+| `extract --since <date>`   | Pull records newer than the supplied ISO date and land raw JSON.          |
 
 ## Incremental Load & Idempotency
 
@@ -161,7 +160,7 @@ pytest
 ```
 
 * `tests/test_transform.py` — verifies the `1900-01-01` sentinel becomes null and that exact-duplicate rows are dropped.
-* `tests/test_load.py` — verifies that reloading the same frame leaves the row count unchanged (idempotency).
+* `tests/test_load.py` — verifies that reloading the same frame leaves the row count unchanged.
 
 ## Technologies
 
@@ -171,7 +170,7 @@ pytest
 * requests
 * SQLAlchemy
 * SQLite
-* Typer (CLI)
+* Typer
 * pytest
 
 ## Repository Structure
@@ -183,7 +182,7 @@ src/
     models.py        # Pydantic InspectionRecord + validate_records()
     transform.py     # standardize / coerce / clean / derive
     load.py          # engine, full + incremental load, watermark read/write, verify
-    cli.py           # Typer commands (run, run --full, extract, transform/load stubs)
+    cli.py           # Typer commands for extraction and end-to-end execution
 
 data/
     raw/             # bronze JSON landing (gitignored except .gitkeep)
@@ -199,9 +198,7 @@ README.md
 
 ## Known Limitations
 
-* Standalone `transform` and `load` CLI commands are stubs; there is no persisted processed-data artifact between steps, so the working entry point is `run`.
-* The `extract` command accepts a `--since` option, but it is not yet passed through to the extraction layer.
-* On a successful load, the `run` summary still prints a "No new valid rows to load." line; this is a cosmetic output issue, not a load problem.
+* Incremental loads read the existing SQLite table, merge it with the new batch, and rewrite the table. This is suitable for the current project size but would not scale well to a much larger warehouse.
 
 ## Installation
 

@@ -21,5 +21,3 @@ def test_load_is_idempotent():
 
     assert first_count == 2
     assert second_count == 2
-
-test_load_is_idempotent()

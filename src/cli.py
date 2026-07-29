@@ -1,5 +1,6 @@
-"""Typer CLI. Each layer is runnable on its own; `run` does the whole pipeline."""
+"""Typer CLI. `run` does the whole pipeline."""
 from __future__ import annotations
+from datetime import datetime
 import typer
 from .config import Config
 from .models import validate_records
@@ -24,22 +25,15 @@ def extract(since: str = typer.Option(None, help="ISO date; only inspections on/
     """Pull from the API and land raw JSON to data/raw/."""
     cfg = Config.from_env()
 
+    watermark = datetime.fromisoformat(since.replace('Z', '+00:00')) if since else None
+    where = build_where_clause(watermark)
+
     session = make_session(cfg)
-    raw_records = list(extract_all(session, cfg))
+    raw_records = list(extract_all(session, cfg, where=where))
     raw_path = land_raw(raw_records, cfg)
 
     typer.echo(f'Extracted rows: {len(raw_records)}')
     typer.echo(f'Raw File: {raw_path}')
-
-@app.command()
-def transform():
-    """Validate + clean the latest raw pull into a clean frame."""
-    typer.echo("Standalone transform command is not implemented yet. Use `run` for now.")
-
-@app.command()
-def load():
-    """Load the clean frame into SQLite."""
-    typer.echo("Standalone load command is not implemented yet. Use `run` for now.")
 
 
 @app.command()
@@ -61,7 +55,6 @@ def run(
             typer.echo('No watermark found. Running initial full extract.')
         else:
             typer.echo(f'Running incremental extract after: {watermark.isoformat()}')
-
 
     session = make_session(cfg)
     raw_records = list(extract_all(session, cfg, where=where))
@@ -102,7 +95,6 @@ def run(
     typer.echo(f"Fetched rows: {len(raw_records)}")
     typer.echo(f"Accepted rows: {len(good_rows)}")
     typer.echo(f"Bad rows: {len(bad_rows)}")
-    typer.echo("No new valid rows to load.")
     typer.echo(f"Loaded rows: {row_count}")
 
 

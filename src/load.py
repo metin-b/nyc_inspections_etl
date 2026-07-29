@@ -1,8 +1,9 @@
 """Load layer (clean frame -> SQLite, idempotent + incremental)."""
 from __future__ import annotations
-from datetime import date
+from datetime import datetime
 import pandas as pd
 from sqlalchemy import create_engine, text, inspect
+from sqlalchemy.engine import Engine
 from .config import Config
 
 STATE_TABLE = "etl_state"
@@ -37,7 +38,7 @@ def _ensure_state_table(engine: Engine) -> None:
             """))
 
 
-def read_watermark(engine: Engine) -> date | None:
+def read_watermark(engine: Engine) -> datetime | None:
     """Read the latest loaded record_date from the ETL state table.
 
     Returns None on the first run.
@@ -55,7 +56,7 @@ def read_watermark(engine: Engine) -> date | None:
     return pd.to_datetime(value).to_pydatetime()
 
 
-def write_watermark(engine: Engine, value: date) -> None:
+def write_watermark(engine: Engine, value: datetime) -> None:
     """Store the latest processed inspection date."""
     _ensure_state_table(engine)
     value_text = pd.Timestamp(value).isoformat()
@@ -127,4 +128,3 @@ def verify(engine: Engine, table: str) -> int:
     """Return the number of rows currently stored in the table."""
     with engine.connect() as conn:
         return conn.execute(text(f'SELECT COUNT(*) FROM {table}')).scalar_one()
-
